@@ -9,6 +9,27 @@ using namespace plasma;
 extern "C" {
 #include "plasma.h"
 #include "py/builtin.h"
+#include "machine_pin.h"
+
+int pimoroni_gpio_from_obj(const mp_obj_t &object) {
+    int gpio;
+    if (mp_obj_is_type(object, &machine_pin_type)) {
+        machine_pin_obj_t *pin = MP_OBJ_TO_PTR2(object, machine_pin_obj_t);
+        #if MICROPY_HW_PIN_EXT_COUNT
+        if(pin->is_ext) {
+            mp_raise_TypeError(MP_ERROR_TEXT("pin cannot be an external pin"));
+        }
+        #endif
+        gpio = pin->id;
+    }
+    else if (mp_obj_is_int(object)) {
+        gpio = mp_obj_get_int(object);
+    }
+    else {
+        mp_raise_msg_varg(&mp_type_TypeError, MP_ERROR_TEXT("pin must be of type %q or int, not %q"), machine_pin_type.name, mp_obj_get_type(object)->name);
+    }
+    return gpio;
+}
 
 typedef struct _mp_obj_float_t {
     mp_obj_base_t base;
@@ -64,7 +85,7 @@ mp_obj_t PlasmaWS2812_make_new(const mp_obj_type_t *type, size_t n_args, size_t 
         { MP_QSTR_num_leds, MP_ARG_REQUIRED | MP_ARG_INT },
         { MP_QSTR_pio, MP_ARG_REQUIRED | MP_ARG_INT },
         { MP_QSTR_sm, MP_ARG_REQUIRED | MP_ARG_INT },
-        { MP_QSTR_dat, MP_ARG_REQUIRED | MP_ARG_INT },
+        { MP_QSTR_dat, MP_ARG_REQUIRED | MP_ARG_OBJ },
         { MP_QSTR_freq, MP_ARG_INT, {.u_int = WS2812::DEFAULT_SERIAL_FREQ} },
         { MP_QSTR_buffer, MP_ARG_OBJ, {.u_obj = nullptr} },
         { MP_QSTR_rgbw, MP_ARG_BOOL, {.u_bool = false} },
@@ -78,7 +99,7 @@ mp_obj_t PlasmaWS2812_make_new(const mp_obj_type_t *type, size_t n_args, size_t 
     int num_leds = args[ARG_num_leds].u_int;
     PIO pio = args[ARG_pio].u_int == 0 ? pio0 : pio1;
     int sm = args[ARG_sm].u_int;
-    int dat = args[ARG_dat].u_int;
+    int dat = pimoroni_gpio_from_obj(args[ARG_dat].u_obj);
     int freq = args[ARG_freq].u_int;
     bool rgbw = args[ARG_rgbw].u_bool;
     WS2812::COLOR_ORDER color_order = (WS2812::COLOR_ORDER)args[ARG_color_order].u_int;
@@ -269,8 +290,8 @@ mp_obj_t PlasmaAPA102_make_new(const mp_obj_type_t *type, size_t n_args, size_t 
         { MP_QSTR_num_leds, MP_ARG_REQUIRED | MP_ARG_INT },
         { MP_QSTR_pio, MP_ARG_REQUIRED | MP_ARG_INT },
         { MP_QSTR_sm, MP_ARG_REQUIRED | MP_ARG_INT },
-        { MP_QSTR_dat, MP_ARG_REQUIRED | MP_ARG_INT },
-        { MP_QSTR_clk, MP_ARG_REQUIRED | MP_ARG_INT },
+        { MP_QSTR_dat, MP_ARG_REQUIRED | MP_ARG_OBJ },
+        { MP_QSTR_clk, MP_ARG_REQUIRED | MP_ARG_OBJ },
         { MP_QSTR_freq, MP_ARG_INT, {.u_int = APA102::DEFAULT_SERIAL_FREQ} },
         { MP_QSTR_buffer, MP_ARG_OBJ, {.u_obj = nullptr} },
     };
@@ -282,8 +303,8 @@ mp_obj_t PlasmaAPA102_make_new(const mp_obj_type_t *type, size_t n_args, size_t 
     int num_leds = args[ARG_num_leds].u_int;
     PIO pio = args[ARG_pio].u_int == 0 ? pio0 : pio1;
     int sm = args[ARG_sm].u_int;
-    int dat = args[ARG_dat].u_int;
-    int clk = args[ARG_clk].u_int;
+    int dat = pimoroni_gpio_from_obj(args[ARG_dat].u_obj);
+    int clk = pimoroni_gpio_from_obj(args[ARG_clk].u_obj);
     int freq = args[ARG_freq].u_int;
 
     APA102::RGB *buffer = nullptr;
